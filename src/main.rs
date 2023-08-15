@@ -26,6 +26,10 @@ pub fn i420_viewer(
         .map_err(|e| e.to_string())?;
     let mut event_pump = sdl_context.event_pump()?;
 
+    let w = width as usize;
+    let h = height as usize;
+    let mut inbuf = vec![0; w * h * 3 / 2];
+
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -37,9 +41,6 @@ pub fn i420_viewer(
                 _ => {}
             }
         }
-        let w = width as usize;
-        let h = height as usize;
-        let mut inbuf = vec![0; w * h * 3 / 2];
         reader.read_exact(&mut inbuf)?;
 
         texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
