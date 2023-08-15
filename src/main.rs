@@ -1,10 +1,13 @@
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
-use std::time::Duration;
-//use sdl2::rect::Rect;
+use std::io::Read;
 
-pub fn i420_viewer(width: u32, height: u32) -> Result<(), String> {
+pub fn i420_viewer(
+    reader: &mut dyn Read,
+    width: u32,
+    height: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
 
@@ -23,7 +26,6 @@ pub fn i420_viewer(width: u32, height: u32) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let mut event_pump = sdl_context.event_pump()?;
 
-    let mut count = 0;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -35,31 +37,25 @@ pub fn i420_viewer(width: u32, height: u32) -> Result<(), String> {
                 _ => {}
             }
         }
-        // Create a U-V gradient
+        let w = width as usize;
+        let h = height as usize;
+        let mut inbuf = vec![0; w * h * 3 / 2];
+        reader.read_exact(&mut inbuf)?;
+
         texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-            // `pitch` is the width of the Y component
-            // The U and V components are half the width and height of Y
-
-            let w = width as usize;
-            let h = height as usize;
-
-            // Set Y (constant)
             for y in 0..h {
                 for x in 0..w {
                     let offset = y * pitch + x;
-                    buffer[offset] = 128;
+                    buffer[offset] = inbuf[y * w + x];
                 }
             }
-
             let y_size = pitch * h;
-
-            // Set U and V (X and Y)
             for y in 0..h / 2 {
                 for x in 0..w / 2 {
                     let u_offset = y_size + y * pitch / 2 + x;
                     let v_offset = y_size + (pitch / 2 * h / 2) + y * pitch / 2 + x;
-                    buffer[u_offset] = ((x * 2) + count) as _;
-                    buffer[v_offset] = ((y * 2) + count) as _;
+                    buffer[u_offset] = inbuf[w * h + y * w / 2 + x];
+                    buffer[v_offset] = inbuf[w * h + (w / 2 * h / 2) + y * w / 2 + x];
                 }
             }
         })?;
@@ -67,18 +63,21 @@ pub fn i420_viewer(width: u32, height: u32) -> Result<(), String> {
         canvas.clear();
         canvas.copy(&texture, None, None)?;
         canvas.present();
-
-        count += 1;
-        std::thread::sleep(Duration::from_millis(50));
     }
 
     Ok(())
 }
 
-pub fn main() -> Result<(), String> {
-    let width: u32 = 640;
-    let height: u32 = 480;
-    i420_viewer(width, height)?;
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 4 {
+        eprintln!("Usage: {} input_file width height", args[0]);
+        std::process::exit(1);
+    }
+    let width: u32 = args[2].parse()?;
+    let height: u32 = args[3].parse()?;
+    let mut reader = std::fs::File::open(&args[1])?;
+    i420_viewer(&mut reader, width, height)?;
 
     Ok(())
 }
