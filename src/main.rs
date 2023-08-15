@@ -4,12 +4,10 @@ use sdl2::pixels::PixelFormatEnum;
 use std::time::Duration;
 //use sdl2::rect::Rect;
 
-pub fn main() -> Result<(), String> {
+pub fn i420_viewer(width: u32, height: u32) -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
 
-    let width = 256;
-    let height = 256;
     let window = video_subsystem
         .window("i420-viewer-rs", width, height)
         .position_centered()
@@ -73,6 +71,14 @@ pub fn main() -> Result<(), String> {
         count += 1;
         std::thread::sleep(Duration::from_millis(50));
     }
+
+    Ok(())
+}
+
+pub fn main() -> Result<(), String> {
+    let width: u32 = 640;
+    let height: u32 = 480;
+    i420_viewer(width, height)?;
 
     Ok(())
 }
