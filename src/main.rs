@@ -46,7 +46,7 @@ pub fn i420_viewer(
                 _ => {}
             }
         }
-        if poll(&mut [poll_fd], timeout).unwrap() != 0 {
+        if poll(&mut [poll_fd], timeout)? != 0 {
             reader.read_exact(&mut inbuf)?;
             texture.update(None, &inbuf, w)?;
 
