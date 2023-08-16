@@ -1,10 +1,12 @@
+use nix::poll::{poll, PollFd, PollFlags};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use std::io::Read;
+use std::os::fd::AsRawFd;
 
 pub fn i420_viewer(
-    reader: &mut dyn Read,
+    reader: &mut std::fs::File,
     width: u32,
     height: u32,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -30,6 +32,9 @@ pub fn i420_viewer(
     let h = height as usize;
     let mut inbuf = vec![0; w * h * 3 / 2];
 
+    let poll_fd = PollFd::new(reader.as_raw_fd(), PollFlags::POLLIN);
+    let timeout = 1000; // msec
+
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -41,12 +46,14 @@ pub fn i420_viewer(
                 _ => {}
             }
         }
-        reader.read_exact(&mut inbuf)?;
-	texture.update(None, &inbuf, w)?;
+        if poll(&mut [poll_fd], timeout).unwrap() != 0 {
+            reader.read_exact(&mut inbuf)?;
+            texture.update(None, &inbuf, w)?;
 
-        canvas.clear();
-        canvas.copy(&texture, None, None)?;
-        canvas.present();
+            canvas.clear();
+            canvas.copy(&texture, None, None)?;
+            canvas.present();
+        }
     }
 
     Ok(())
