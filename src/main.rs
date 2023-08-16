@@ -42,24 +42,7 @@ pub fn i420_viewer(
             }
         }
         reader.read_exact(&mut inbuf)?;
-
-        texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-            for y in 0..h {
-                for x in 0..w {
-                    let offset = y * pitch + x;
-                    buffer[offset] = inbuf[y * w + x];
-                }
-            }
-            let y_size = pitch * h;
-            for y in 0..h / 2 {
-                for x in 0..w / 2 {
-                    let u_offset = y_size + y * pitch / 2 + x;
-                    let v_offset = y_size + (pitch / 2 * h / 2) + y * pitch / 2 + x;
-                    buffer[u_offset] = inbuf[w * h + y * w / 2 + x];
-                    buffer[v_offset] = inbuf[w * h + (w / 2 * h / 2) + y * w / 2 + x];
-                }
-            }
-        })?;
+	texture.update(None, &inbuf, w)?;
 
         canvas.clear();
         canvas.copy(&texture, None, None)?;
