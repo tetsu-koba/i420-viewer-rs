@@ -2,7 +2,7 @@ use nix::poll::{poll, PollFd, PollFlags};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 use std::os::fd::AsRawFd;
 
 pub fn i420_viewer(
@@ -46,14 +46,22 @@ pub fn i420_viewer(
                 _ => {}
             }
         }
-        if poll(&mut [poll_fd], timeout)? != 0 {
-            reader.read_exact(&mut inbuf)?;
-            texture.update(None, &inbuf, w)?;
-
-            canvas.clear();
-            canvas.copy(&texture, None, None)?;
-            canvas.present();
+        match poll(&mut [poll_fd], timeout) {
+            Ok(0) => continue,
+            Ok(_) => {}
+            Err(e) if e == nix::errno::Errno::EINTR => continue,
+            Err(e) => return Err(Box::new(e)),
         }
+        match reader.read_exact(&mut inbuf) {
+            Ok(_) => {}
+            Err(ref e) if e.kind() == ErrorKind::UnexpectedEof => break,
+            Err(e) => return Err(Box::new(e)),
+        }
+        texture.update(None, &inbuf, w)?;
+
+        canvas.clear();
+        canvas.copy(&texture, None, None)?;
+        canvas.present();
     }
 
     Ok(())
