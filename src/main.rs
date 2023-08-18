@@ -17,10 +17,14 @@ pub fn i420_viewer(
         .window("i420-viewer-rs", width, height)
         .position_centered()
         .opengl()
+        .hidden()
         .build()
         .map_err(|e| e.to_string())?;
-
-    let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+    let mut canvas = window
+        .into_canvas()
+        .accelerated()
+        .build()
+        .map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
 
     let mut texture = texture_creator
@@ -35,6 +39,7 @@ pub fn i420_viewer(
     let poll_fd = PollFd::new(reader.as_raw_fd(), PollFlags::POLLIN);
     let timeout = 1000; // msec
 
+    let mut shown = false;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -62,6 +67,10 @@ pub fn i420_viewer(
         canvas.clear();
         canvas.copy(&texture, None, None)?;
         canvas.present();
+        if !shown {
+            canvas.window_mut().show();
+            shown = true;
+        }
     }
 
     Ok(())
