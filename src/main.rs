@@ -2,6 +2,7 @@ use nix::poll::{poll, PollFd, PollFlags};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
+use sdl2::rect::Rect;
 use std::io::{ErrorKind, Read};
 use std::os::fd::AsRawFd;
 
@@ -18,6 +19,7 @@ pub fn i420_viewer(
         .position_centered()
         .opengl()
         .hidden()
+        .resizable()
         .build()
         .map_err(|e| e.to_string())?;
     let mut canvas = window
@@ -65,7 +67,8 @@ pub fn i420_viewer(
         texture.update(None, &inbuf, w)?;
 
         canvas.clear();
-        canvas.copy(&texture, None, None)?;
+        let r2 = calc_dest_rect(canvas.viewport(), width, height);
+        canvas.copy(&texture, None, r2)?;
         canvas.present();
         if !shown {
             canvas.window_mut().show();
@@ -74,6 +77,24 @@ pub fn i420_viewer(
     }
 
     Ok(())
+}
+
+// calc inner rect which keeps aspect ratio
+fn calc_dest_rect(dst: Rect, width: u32, height: u32) -> Rect {
+    let sw = dst.width();
+    let sh = dst.height();
+    if sw == width && sh == height {
+        return dst;
+    }
+    if sw * height < sh * width {
+        let h2 = height * sw / width;
+        let y = (sh - h2) / 2;
+        Rect::new(0, y as _, sw, h2)
+    } else {
+        let w2 = width * sh / height;
+        let x = (sw - w2) / 2;
+        Rect::new(x as _, 0, w2, sh)
+    }
 }
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
