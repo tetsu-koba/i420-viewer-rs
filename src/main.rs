@@ -3,6 +3,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
+use sdl2::video::FullscreenType;
 use std::io::{ErrorKind, Read};
 use std::os::fd::AsRawFd;
 
@@ -45,11 +46,15 @@ pub fn i420_viewer(
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
+                Event::Quit { .. } => break 'running,
+                Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => break 'running,
+                } => canvas.window_mut().set_fullscreen(FullscreenType::Off)?,
+                Event::KeyDown {
+                    keycode: Some(Keycode::F),
+                    ..
+                } => canvas.window_mut().set_fullscreen(FullscreenType::True)?,
                 _ => {}
             }
         }
